@@ -19,6 +19,8 @@ import { CurrencyRates } from './components/currency/CurrencyRates';
 import { Slider } from './features/Slider';
 import { sliderData } from './services/data';
 import { detectUserCity, UserCoordinates } from './services/weatherService';
+import { ArrowUpRight } from 'lucide-react';
+import hotsaleLogo from './assets/logo/hotsale.png';
 
 const Box = ({ children, className = '' }: { children?: React.ReactNode; className?: string }) => {
   const hasBg = className.includes('bg-');
@@ -197,12 +199,30 @@ export default function App() {
                 </div>
               </main>
 
-              {/* მარჯვენა სვეტი */}
+              {/* მარჯვენა სვეტის რეკლამა */}
               <aside className="space-y-3 sm:space-y-4 flex flex-col">
                 {/* ზედა რეკლამა (Palitra News) */}
-                <Box className="h-[180px] sm:h-[280px] w-full bg-[#c9252c] text-white text-xs sm:text-base">
-                  Palitra News Ad Banner
-                </Box>
+                <a
+                  href="https://palitranews.ge/"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Palitra News-ის მთავარი ამბების ნახვა"
+                  className="group relative flex h-[180px] w-full flex-col justify-between overflow-hidden rounded-[4px] bg-[#c9252c] p-4 text-white shadow-lg transition-colors hover:bg-[#b51d25] sm:h-[280px] sm:p-6"
+                >
+                  <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full border-[24px] border-white/10 sm:h-56 sm:w-56" />
+                  <div className="relative flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.12em] sm:text-sm">Palitra News</span>
+                    <span className="rounded border border-white/60 px-2 py-1 text-[9px] font-bold uppercase tracking-wider sm:text-[10px]">სიახლე</span>
+                  </div>
+                  <div className="relative">
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/75 sm:text-xs">იყავი ინფორმირებული</p>
+                    <h2 className="max-w-[210px] text-xl font-bold leading-tight sm:text-[28px]">მთავარი ამბები, ყოველთვის შენთან</h2>
+                  </div>
+                  <div className="relative flex items-center justify-between border-t border-white/30 pt-3 text-xs font-semibold sm:pt-4 sm:text-sm">
+                    <span>გაიგე მეტი</span>
+                    <ArrowUpRight aria-hidden="true" size={18} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                  </div>
+                </a>
 
                 {/* კონვერტორი (ზუსტად ბანერის ქვეშ) */}
                 <div className="w-full">
@@ -210,9 +230,30 @@ export default function App() {
                 </div>
 
                 {/* ქვედა რეკლამა */}
-                <Box className="h-[160px] sm:h-[260px] w-full bg-[#1e3d2f] text-white text-xs sm:text-base">
-                  Bottom Ad Banner
-                </Box>
+                <a
+                  href="https://hotsale.ge/"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Hotsale-ზე სასტუმროების შეთავაზებების ნახვა"
+                  className="group relative h-[160px] w-full overflow-hidden rounded-[4px] bg-[#1e3d2f] text-white shadow-lg sm:h-[260px]"
+                >
+                  <img
+                    src={sliderData[0].image}
+                    alt=""
+                    className="absolute inset-x-0 top-0 h-[58%] w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/5 to-[#1e3d2f]" />
+                  <div className="absolute inset-x-0 top-0 flex justify-end p-3 sm:p-4">
+                    <img src={hotsaleLogo} alt="Hotsale" className="h-5 w-auto sm:h-6" />
+                  </div>
+                  <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3 sm:p-5">
+                    <div className="min-w-0">
+                      <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-emerald-200 sm:text-[10px]">დროა განიტვირთო</p>
+                      <h2 className="text-base font-bold leading-tight sm:text-[22px]">აღმოაჩინე დასვენების შეთავაზებები</h2>
+                    </div>
+                    <ArrowUpRight aria-hidden="true" size={19} className="mb-0.5 shrink-0 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                  </div>
+                </a>
               </aside>
 
             </div>
