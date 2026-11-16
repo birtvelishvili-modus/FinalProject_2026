@@ -19,11 +19,16 @@ import { ZodiacDetailPage } from './features/ZodiacDetailPage';
 import { CurrencyRates } from './components/currency/CurrencyRates';
 import { Slider } from './features/Slider';
 import { sliderData } from './services/data';
-import { detectUserCity, UserCoordinates } from './services/weatherService';
+import { detectUserCity, fetchCurrentWeather, UserCoordinates } from './services/weatherService';
 import { PalitraLongAd } from './components/ads/PalitraLongAd'; //რეკლამა
 import { PalitraShortAd } from './components/ads/PalitraShortAd'; //რეკლამა
 import { PalitraNewsAd } from './components/ads/PalitraNewsAd'; //რეკლამა
 import { CityDropdown } from './components/choiceCity/city';
+import CitySearch from './my_search/CitySearch';
+import LanguageSelector from './my_search/LanguageSelector';
+import TemperatureUnitSelector from './my_search/TemperatureUnitSelector';
+import { LanguageProvider, formatTemperature, type SiteLanguage, type TemperatureUnit } from './context/LanguageContext';
+import { NewsSection } from './features/News/NewsSection';
 
 interface CityOption {
   id: number;
@@ -111,8 +116,24 @@ const Box = ({ children, className = '' }: { children?: React.ReactNode; classNa
 };
 
 export default function App() {
+  const [language, setLanguage] = useState<SiteLanguage>(() => {
+    try {
+      const saved = localStorage.getItem('amindi_language');
+      return saved === 'en' || saved === 'ru' ? saved : 'ka';
+    } catch {
+      return 'ka';
+    }
+  });
+  const [temperatureUnit, setTemperatureUnit] = useState<TemperatureUnit>(() => {
+    try {
+      return localStorage.getItem('amindi_temperature_unit') === 'F' ? 'F' : 'C';
+    } catch {
+      return 'C';
+    }
+  });
   // მომხმარებლის მიმდინარე ქალაქი (საწყისად Tbilisi, შემდეგ დეტექტირდება ავტომატურად)
   const [city, setCity] = useState<string>('Tbilisi');
+  const [cityOptions, setCityOptions] = useState<CityOption[]>(CITY_OPTIONS);
   const [coordinates, setCoordinates] = useState<UserCoordinates | null>(null);
   const [mapWeather, setMapWeather] = useState<MapWeather | null>(null);
   const [selectedCity, setSelectedCity] = useState<CityOption | null>(null);
@@ -129,6 +150,67 @@ export default function App() {
   });
   const [activeZodiacTab, setActiveZodiacTab] = useState<'daily' | 'monthly' | 'yearly' | 'general'>('daily');
 
+  useEffect(() => {
+    document.documentElement.lang = language;
+    try {
+      localStorage.setItem('amindi_language', language);
+    } catch {
+      // Language selection remains active for this session when storage is unavailable.
+    }
+  }, [language]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('amindi_temperature_unit', temperatureUnit);
+    } catch {
+      // Unit selection remains active for this session when storage is unavailable.
+    }
+  }, [temperatureUnit]);
+
+  const localizedCityOptions = cityOptions.map((item) => ({
+    ...item,
+    temp: formatTemperature(item.temp, temperatureUnit),
+    name: language === 'ka' ? item.name : language === 'en' ? item.query : ({
+      Tbilisi: 'Тбилиси', Batumi: 'Батуми', Kutaisi: 'Кутаиси', Rustavi: 'Рустави',
+      Gori: 'Гори', Telavi: 'Телави', Zugdidi: 'Зугдиди', Poti: 'Поти',
+      Bakuriani: 'Бакуриани', Akhaltsikhe: 'Ахалцихе', Borjomi: 'Боржоми',
+    } as Record<string, string>)[item.query] ?? item.query,
+  }));
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTemperatures = async () => {
+      for (const option of CITY_OPTIONS) {
+        if (cancelled) return;
+
+        try {
+          const weather = await fetchCurrentWeather(option.query);
+          if (cancelled) return;
+
+          setCityOptions((current) =>
+            current.map((cityOption) =>
+              cityOption.id === option.id ? { ...cityOption, temp: weather.temp } : cityOption,
+            ),
+          );
+          setSelectedCity((current) =>
+            current?.id === option.id ? { ...current, temp: weather.temp } : current,
+          );
+        } catch {
+          // Keep the existing fallback temperature if the API request fails.
+        }
+
+        await new Promise<void>((resolve) => {
+          window.setTimeout(resolve, 1000);
+        });
+      }
+    };
+
+    void loadTemperatures();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   // URL hash-ის მოსმენა (ბრაუზერის Back/Forward ღილაკებისთვის)
   useEffect(() => {
     const handleUrlChange = () => {
@@ -171,6 +253,39 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleSelectCity = (chosenCity: CityOption) => {
+    citySelectedByUser.current = true;
+    setSelectedCity(chosenCity);
+    setCity(chosenCity.query);
+    setCoordinates(null);
+    setMapWeather(null);
+  };
+
+  const cityToolbar = (
+    <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:gap-3">
+      <div className="[&>div>button]:!h-[37px] [&>div>button]:!box-border">
+        <CityDropdown
+          cities={localizedCityOptions}
+          selectedCity={localizedCityOptions.find((item) => item.id === selectedCity?.id) ?? null}
+          language={language}
+          unit={temperatureUnit}
+          onSelectCity={handleSelectCity}
+        />
+      </div>
+      <div className="ml-auto flex flex-wrap items-center gap-2 sm:gap-3">
+        <CitySearch
+          cities={localizedCityOptions}
+          selectedCity={localizedCityOptions.find((item) => item.id === selectedCity?.id) ?? null}
+          language={language}
+          unit={temperatureUnit}
+          onSelectCity={handleSelectCity}
+        />
+        <LanguageSelector language={language} onChange={setLanguage} />
+        <TemperatureUnitSelector unit={temperatureUnit} onChange={setTemperatureUnit} />
+      </div>
+    </div>
+  );
+
   // აპლიკაციის ჩატვირთვისას ავტომატურად ვადგენთ მომხმარებლის ქვეყანას/ქალაქს
   useEffect(() => {
     let cancelled = false;
@@ -189,6 +304,7 @@ export default function App() {
   }, []);
 
   return (
+    <LanguageProvider language={language} unit={temperatureUnit}>
     <BackgroundSky>
       <div className="min-h-screen text-slate-700 flex flex-col">
 
@@ -217,10 +333,14 @@ export default function App() {
 
 
             {/* 3-Column Grid Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-[235px_1fr_235px] xl:grid-cols-[260px_1fr_260px] gap-3 sm:gap-4 flex-1">
+            <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)_260px] xl:grid-cols-[310px_minmax(0,1fr)_260px] gap-3 sm:gap-4 flex-1">
+
+              <div className="rounded-[4px] bg-[rgba(25,55,92,0.88)] px-2 py-1.5 sm:px-4 lg:col-start-2 lg:col-end-4 lg:row-start-1">
+                {cityToolbar}
+              </div>
 
               {/* მარცხენა სვეტი: ერთიანი მუქი პანელი amindi.ge-ს სტილში */}
-              <aside className="w-full lg:w-[235px] xl:w-[260px] shrink-0 bg-[#2f4058]/90 text-white rounded-[4px] p-3 sm:p-4 flex flex-col gap-3 sm:gap-4 shadow-lg backdrop-blur-sm h-full">
+              <aside className="w-full shrink-0 bg-[#2f4058]/90 text-white rounded-[4px] p-3 sm:p-4 flex flex-col gap-3 sm:gap-4 shadow-lg backdrop-blur-sm h-full lg:col-start-1 lg:row-start-1 lg:row-span-2">
 
                 {/* 1. მიმდინარე ამინდი */}
                 <div className="w-full pb-3 border-b border-white/20">
@@ -250,20 +370,7 @@ export default function App() {
               </aside>
 
               {/* ცენტრალური სვეტი */}
-              <main className="space-y-3 sm:space-y-4 min-w-0">
-                <div className="w-full flex justify-start mb-2">
-                  <CityDropdown
-                    cities={CITY_OPTIONS}
-                    selectedCity={selectedCity}
-                    onSelectCity={(chosenCity: CityOption) => {
-                      citySelectedByUser.current = true;
-                      setSelectedCity(chosenCity);
-                      setCity(chosenCity.query);
-                      setCoordinates(null);
-                      setMapWeather(null);
-                    }}
-                  />
-                </div>
+              <main className="space-y-3 sm:space-y-4 min-w-0 lg:col-start-2 lg:row-start-2">
                 {/* ამინდის პროგნოზი: დღეების მიხედვით ან 24-საათიანი სრული ბადე */}
                 <div className="w-full">
                   {centerView === 'hourly' ? (
@@ -288,6 +395,9 @@ export default function App() {
                   <Slider slides={sliderData} />
                 </div>
 
+                 {/* 🆕 სიახლეები */}
+                <NewsSection />
+
                 {/* ასტროლოგია / ჰოროსკოპი (სულ ბოლოში) */}
                 <div className="w-full">
                   <AstrologyHoroscope onNavigateToZodiac={handleNavigateToZodiac} />
@@ -295,7 +405,7 @@ export default function App() {
               </main>
 
               {/* მარჯვენა სვეტი */}
-              <aside className="space-y-3 sm:space-y-4 flex flex-col">
+              <aside className="space-y-3 sm:space-y-4 flex flex-col lg:col-start-3 lg:row-start-2">
                 {/* ზედა რეკლამა (Palitra News) */}
                 <div className="w-full h-[230px] sm:h-[310px]">
                   <PalitraShortAd />
@@ -310,6 +420,11 @@ export default function App() {
                 <div className="w-full h-[260px] sm:h-[520px]">
                   <PalitraLongAd />
                 </div>
+
+                {/* დამატებითი რეკლამა ქვედა თავისუფალ სივრცეში */}
+                <div className="w-full h-[260px] sm:h-[520px]">
+                  <PalitraLongAd />
+                </div>
               </aside>
 
             </div>
@@ -321,5 +436,6 @@ export default function App() {
 
       </div>
     </BackgroundSky>
+    </LanguageProvider>
   );
 }
